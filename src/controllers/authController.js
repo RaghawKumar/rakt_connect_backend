@@ -11,9 +11,9 @@ exports.sendOtp = async (req, res) => {
       return res.status(400).json({ error: 'Phone number and role are required.' });
     }
 
-    const validRoles = ['recipient', 'donor', 'hospital_blood_bank'];
+    const validRoles = ['recipient', 'donor', 'hospital_blood_bank', 'admin'];
     if (!validRoles.includes(role)) {
-      return res.status(400).json({ error: 'Invalid role. Must be recipient, donor, or hospital_blood_bank.' });
+      return res.status(400).json({ error: 'Invalid role. Must be recipient, donor, hospital_blood_bank, or admin.' });
     }
 
     // Generate a 6-digit OTP (static 123456)

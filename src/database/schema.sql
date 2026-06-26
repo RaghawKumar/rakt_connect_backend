@@ -7,7 +7,7 @@ USE `raktconnect_db`;
 CREATE TABLE IF NOT EXISTS `users` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `phone_number` VARCHAR(20) NOT NULL,
-  `role` ENUM('recipient', 'donor', 'hospital_blood_bank') NOT NULL,
+  `role` ENUM('recipient', 'donor', 'hospital_blood_bank', 'admin') NOT NULL,
   `full_name` VARCHAR(100) NULL,
   `blood_group` ENUM('A+', 'A-', 'B+', 'B-', 'O+', 'O-', 'AB+', 'AB-') NULL,
   `age` INT NULL,
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS `users` (
 CREATE TABLE IF NOT EXISTS `otps` (
   `id` INT AUTO_INCREMENT PRIMARY KEY,
   `phone_number` VARCHAR(20) NOT NULL,
-  `role` ENUM('recipient', 'donor', 'hospital_blood_bank') NOT NULL,
+  `role` ENUM('recipient', 'donor', 'hospital_blood_bank', 'admin') NOT NULL,
   `otp_code` VARCHAR(6) NOT NULL,
   `expires_at` TIMESTAMP NOT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP

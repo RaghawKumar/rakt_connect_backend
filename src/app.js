@@ -10,6 +10,9 @@ const authRoutes = require('./routes/authRoutes');
 const userRoutes = require('./routes/userRoutes');
 const requestRoutes = require('./routes/requestRoutes');
 const stockRoutes = require('./routes/stockRoutes');
+const adminRoutes = require('./routes/adminRoutes');
+const authMiddleware = require('./middlewares/authMiddleware');
+const adminMiddleware = require('./middlewares/adminMiddleware');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -34,6 +37,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/blood-requests', requestRoutes);
 app.use('/api/stocks', stockRoutes);
+app.use('/api/admin', authMiddleware, adminMiddleware, adminRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {

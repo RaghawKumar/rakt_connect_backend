@@ -57,6 +57,14 @@ async function initializeDatabase() {
       }
     }
 
+    try {
+      console.log('Checking for database migrations (admin role)...');
+      await connection.query("ALTER TABLE users MODIFY COLUMN role ENUM('recipient', 'donor', 'hospital_blood_bank', 'admin') NOT NULL;");
+      await connection.query("ALTER TABLE otps MODIFY COLUMN role ENUM('recipient', 'donor', 'hospital_blood_bank', 'admin') NOT NULL;");
+    } catch (err) {
+      console.error('Migration error (admin role):', err.message);
+    }
+
     console.log('Database initialization completed successfully!');
   } catch (error) {
     console.error('Error initializing database:', error.message);
