@@ -151,7 +151,7 @@ exports.updateUser = async (req, res) => {
       longitude ? parseFloat(longitude) : null,
       formattedDonationDate,
       emergency_contact || null,
-      is_available !== undefined ? (is_available ? 1 : 0) : 1,
+      is_available !== undefined ? (is_available ? true : false) : true,
       id
     ]);
 
@@ -249,7 +249,7 @@ exports.updateBloodRequest = async (req, res) => {
       location_name,
       latitude ? parseFloat(latitude) : 0,
       longitude ? parseFloat(longitude) : 0,
-      is_emergency !== undefined ? (is_emergency ? 1 : 0) : 0,
+      is_emergency !== undefined ? (is_emergency ? true : false) : false,
       priority || 'medium',
       status || 'active',
       id

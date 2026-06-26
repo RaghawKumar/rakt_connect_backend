@@ -1,31 +1,58 @@
-const mysql = require('mysql2/promise');
+const { Client } = require('pg');
 const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
 async function initializeDatabase() {
-  const host = process.env.DB_HOST || 'localhost';
-  const user = process.env.DB_USER || 'root';
-  const password = process.env.DB_PASSWORD || '';
-  const database = process.env.DB_NAME || 'raktsetu_db';
-  const port = process.env.DB_PORT || 3306;
+  const database = process.env.DB_NAME || 'raktconnect_db';
+  console.log('Connecting to PostgreSQL server to verify/initialize database...');
 
-  console.log('Connecting to MySQL server to verify/initialize database...');
-
-  let connection;
+  let client;
   try {
-    // Connect without database first to ensure database exists
-    connection = await mysql.createConnection({
-      host,
-      user,
-      password,
-      port,
-      multipleStatements: true
-    });
+    // If DATABASE_URL is provided (e.g. on Render), connect directly to it
+    if (process.env.DATABASE_URL) {
+      console.log('Using DATABASE_URL connection details...');
+      client = new Client({
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false }
+      });
+      await client.connect();
+    } else {
+      // Local configuration fallback
+      const host = process.env.DB_HOST || 'localhost';
+      const user = process.env.DB_USER || 'postgres';
+      const password = process.env.DB_PASSWORD || '';
+      const port = process.env.DB_PORT || 5432;
 
-    console.log(`Creating database "${database}" if it does not exist...`);
-    await connection.query(`CREATE DATABASE IF NOT EXISTS \`${database}\`;`);
-    await connection.query(`USE \`${database}\`;`);
+      console.log(`Connecting to default postgres database to verify if "${database}" exists...`);
+      const defaultClient = new Client({
+        host,
+        user,
+        password,
+        port,
+        database: 'postgres'
+      });
+      await defaultClient.connect();
+
+      // Check if target database exists
+      const res = await defaultClient.query("SELECT 1 FROM pg_database WHERE datname = $1", [database]);
+      if (res.rowCount === 0) {
+        console.log(`Creating database "${database}"...`);
+        // Note: CREATE DATABASE parameter cannot be parameterized with $1
+        await defaultClient.query(`CREATE DATABASE "${database.replace(/"/g, '""')}"`);
+      }
+      await defaultClient.end();
+
+      // Connect to target database
+      client = new Client({
+        host,
+        user,
+        password,
+        port,
+        database
+      });
+      await client.connect();
+    }
 
     // Read schema.sql
     const schemaPath = path.join(__dirname, 'schema.sql');
@@ -36,44 +63,15 @@ async function initializeDatabase() {
     const schemaSql = fs.readFileSync(schemaPath, 'utf8');
 
     console.log(`Executing schema queries to initialize tables...`);
-    await connection.query(schemaSql);
-
-    // Apply database migrations for new columns
-    try {
-      console.log('Checking for database migrations (is_available column)...');
-      await connection.query('ALTER TABLE users ADD COLUMN is_available BOOLEAN DEFAULT TRUE AFTER is_profile_completed;');
-    } catch (err) {
-      if (err.errno !== 1060) { // 1060 is ER_DUP_FIELDNAME (column already exists)
-        console.error('Migration error (is_available):', err.message);
-      }
-    }
-
-    try {
-      console.log('Checking for database migrations (priority column)...');
-      await connection.query("ALTER TABLE blood_requests ADD COLUMN priority ENUM('low', 'medium', 'high', 'critical') DEFAULT 'medium' AFTER is_emergency;");
-    } catch (err) {
-      if (err.errno !== 1060) {
-        console.error('Migration error (priority):', err.message);
-      }
-    }
-
-    try {
-      console.log('Checking for database migrations (admin role)...');
-      await connection.query("ALTER TABLE users MODIFY COLUMN role ENUM('recipient', 'donor', 'hospital_blood_bank', 'admin') NOT NULL;");
-      await connection.query("ALTER TABLE otps MODIFY COLUMN role ENUM('recipient', 'donor', 'hospital_blood_bank', 'admin') NOT NULL;");
-    } catch (err) {
-      console.error('Migration error (admin role):', err.message);
-    }
+    await client.query(schemaSql);
 
     console.log('Database initialization completed successfully!');
   } catch (error) {
     console.error('Error initializing database:', error.message);
-    console.error('Please verify your MySQL server status and credentials in the .env file.');
-    // We do not throw or exit here, letting the main app try to connect if it can,
-    // but in a production app we might exit.
+    console.error('Please verify your PostgreSQL server status and credentials.');
   } finally {
-    if (connection) {
-      await connection.end();
+    if (client) {
+      await client.end();
     }
   }
 }

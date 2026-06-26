@@ -51,7 +51,7 @@ exports.createRequest = async (req, res) => {
       location_name,
       parseFloat(latitude),
       parseFloat(longitude),
-      is_emergency ? 1 : 0,
+      is_emergency ? true : false,
       selectedPriority
     ]);
 
@@ -96,20 +96,22 @@ exports.getRequests = async (req, res) => {
         // Haversine formula to compute distance in KM
         // 6371 * acos(cos(rad(lat)) * cos(rad(r.lat)) * cos(rad(r.lng) - rad(lng)) + sin(rad(lat)) * sin(rad(r.lat)))
         query = `
-          SELECT 
-            br.*,
-            u.full_name AS requester_name,
-            (6371 * acos(
-              cos(radians(?)) * cos(radians(br.latitude)) * 
-              cos(radians(br.longitude) - radians(?)) + 
-              sin(radians(?)) * sin(radians(br.latitude))
-            )) AS distance_km,
-            (SELECT COUNT(*) FROM blood_request_responses WHERE request_id = br.id) AS donor_response_count,
-            (SELECT COUNT(*) FROM blood_request_responses WHERE request_id = br.id AND donor_id = ?) AS has_responded
-          FROM blood_requests br
-          JOIN users u ON br.user_id = u.id
-          WHERE br.status = 'active'
-          HAVING distance_km <= ?
+          SELECT * FROM (
+            SELECT 
+              br.*,
+              u.full_name AS requester_name,
+              (6371 * acos(
+                cos(radians(?)) * cos(radians(br.latitude)) * 
+                cos(radians(br.longitude) - radians(?)) + 
+                sin(radians(?)) * sin(radians(br.latitude))
+              )) AS distance_km,
+              (SELECT COUNT(*) FROM blood_request_responses WHERE request_id = br.id) AS donor_response_count,
+              (SELECT COUNT(*) FROM blood_request_responses WHERE request_id = br.id AND donor_id = ?) AS has_responded
+            FROM blood_requests br
+            JOIN users u ON br.user_id = u.id
+            WHERE br.status = 'active'
+          ) AS subquery
+          WHERE distance_km <= ?
           ORDER BY distance_km ASC
         `;
         params = [lat, lng, lat, userId, radius];
@@ -317,24 +319,26 @@ exports.getMatchingDonors = async (req, res) => {
     // 2. Query donors matching the blood group within 10km
     // Haversine formula to calculate distance
     const donorQuery = `
-      SELECT 
-        u.id AS donor_id,
-        u.full_name,
-        u.phone_number,
-        u.blood_group,
-        u.age,
-        u.gender,
-        u.location_name,
-        (6371 * acos(
-          cos(radians(?)) * cos(radians(u.latitude)) * 
-          cos(radians(u.longitude) - radians(?)) + 
-          sin(radians(?)) * sin(radians(u.latitude))
-        )) AS distance_km
-      FROM users u
-      WHERE u.role = 'donor' 
-        AND u.blood_group = ? 
-        AND u.is_profile_completed = TRUE
-      HAVING distance_km <= 10
+      SELECT * FROM (
+        SELECT 
+          u.id AS donor_id,
+          u.full_name,
+          u.phone_number,
+          u.blood_group,
+          u.age,
+          u.gender,
+          u.location_name,
+          (6371 * acos(
+            cos(radians(?)) * cos(radians(u.latitude)) * 
+            cos(radians(u.longitude) - radians(?)) + 
+            sin(radians(?)) * sin(radians(u.latitude))
+          )) AS distance_km
+        FROM users u
+        WHERE u.role = 'donor' 
+          AND u.blood_group = ? 
+          AND u.is_profile_completed = TRUE
+      ) AS subquery
+      WHERE distance_km <= 10
       ORDER BY distance_km ASC
     `;
 

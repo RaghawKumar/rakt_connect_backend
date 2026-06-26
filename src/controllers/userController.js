@@ -201,7 +201,7 @@ exports.updateAvailability = async (req, res) => {
     }
 
     const updateQuery = 'UPDATE users SET is_available = ? WHERE id = ?';
-    await db.query(updateQuery, [is_available ? 1 : 0, userId]);
+    await db.query(updateQuery, [is_available ? true : false, userId]);
 
     return res.status(200).json({
       message: 'Availability status updated successfully.',

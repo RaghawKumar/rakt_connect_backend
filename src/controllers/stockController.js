@@ -103,26 +103,27 @@ exports.getNearbyBloodBanks = async (req, res) => {
       });
     }
 
-    // Query to find nearby blood banks and aggregate stocks
     const query = `
-      SELECT 
-        u.id AS blood_bank_id,
-        u.full_name AS name,
-        u.phone_number,
-        u.location_name,
-        u.latitude,
-        u.longitude,
-        (6371 * acos(
-          cos(radians(?)) * cos(radians(u.latitude)) * 
-          cos(radians(u.longitude) - radians(?)) + 
-          sin(radians(?)) * sin(radians(u.latitude))
-        )) AS distance_km,
-        GROUP_CONCAT(CONCAT(bbs.blood_group, ':', bbs.units_in_stock)) AS stock_info
-      FROM users u
-      LEFT JOIN blood_bank_stocks bbs ON u.id = bbs.user_id
-      WHERE u.role = 'hospital_blood_bank' AND u.is_profile_completed = TRUE
-      GROUP BY u.id
-      HAVING distance_km <= ?
+      SELECT * FROM (
+        SELECT 
+          u.id AS blood_bank_id,
+          u.full_name AS name,
+          u.phone_number,
+          u.location_name,
+          u.latitude,
+          u.longitude,
+          (6371 * acos(
+            cos(radians(?)) * cos(radians(u.latitude)) * 
+            cos(radians(u.longitude) - radians(?)) + 
+            sin(radians(?)) * sin(radians(u.latitude))
+          )) AS distance_km,
+          string_agg(concat(bbs.blood_group, ':', bbs.units_in_stock), ',') AS stock_info
+        FROM users u
+        LEFT JOIN blood_bank_stocks bbs ON u.id = bbs.user_id
+        WHERE u.role = 'hospital_blood_bank' AND u.is_profile_completed = TRUE
+        GROUP BY u.id
+      ) AS subquery
+      WHERE distance_km <= ?
       ORDER BY distance_km ASC
     `;
 
